@@ -1,14 +1,12 @@
 package com.jopadevi.logistics.controller;
 
 import com.jopadevi.logistics.entity.BillPayment;
-import com.jopadevi.logistics.service.BillPaymentService;
+import com.jopadevi.logistics.service.BillService;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-
 import org.springframework.web.bind.annotation.*;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
@@ -16,23 +14,20 @@ import java.util.List;
 @CrossOrigin(origins = "http://localhost:5173")
 public class BillPaymentController {
 
-    private final BillPaymentService paymentService;
-
+    private final BillService billService;
 
     public BillPaymentController(
-            BillPaymentService paymentService) {
+            BillService billService) {
 
-        this.paymentService = paymentService;
+        this.billService = billService;
     }
 
-
     /* ================================
-       ADD PAYMENT
+       RECEIVE PAYMENT
     ================================= */
 
     @PostMapping
-    public ResponseEntity<BillPayment>
-    addPayment(
+    public ResponseEntity<BillPayment> receivePayment(
 
             @RequestParam Long billId,
 
@@ -41,59 +36,27 @@ public class BillPaymentController {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(
-                        paymentService.addPayment(
+                        billService.receivePayment(
                                 billId,
                                 payment
                         )
                 );
     }
 
-
     /* ================================
-       GET PAYMENTS FOR BILL
+       GET ALL PAYMENTS FOR BILL
     ================================= */
 
     @GetMapping("/bill/{billId}")
-    public ResponseEntity<List<BillPayment>>
-    getPayments(
+    public ResponseEntity<List<BillPayment>> getPayments(
+
             @PathVariable Long billId) {
 
         return ResponseEntity.ok(
-                paymentService
-                        .getPaymentsByBill(billId)
+
+                billService.getBillPayments(
+                        billId
+                )
         );
     }
-
-
-    /* ================================
-       TOTAL RECEIVED
-    ================================= */
-
-    @GetMapping("/bill/{billId}/total")
-    public ResponseEntity<BigDecimal>
-    getTotalPaid(
-            @PathVariable Long billId) {
-
-        return ResponseEntity.ok(
-                paymentService
-                        .getTotalPaid(billId)
-        );
-    }
-
-
-    /* ================================
-       REMAINING
-    ================================= */
-
-    @GetMapping("/bill/{billId}/remaining")
-    public ResponseEntity<BigDecimal>
-    getRemaining(
-            @PathVariable Long billId) {
-
-        return ResponseEntity.ok(
-                paymentService
-                        .getRemainingAmount(billId)
-        );
-    }
-
 }

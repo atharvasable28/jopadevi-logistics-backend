@@ -201,13 +201,11 @@ public class JwtAuthenticationFilter
 
         } catch (Exception e) {
 
-            /*
-             * Invalid / expired JWT
-             */
+            SecurityContextHolder.clearContext();
 
-            SecurityContextHolder
-                    .clearContext();
+            System.out.println("JWT ERROR: " + e.getMessage());
 
+            e.printStackTrace();
         }
 
 

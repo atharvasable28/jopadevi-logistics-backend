@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
@@ -15,14 +17,12 @@ public class Bill {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-
     /* ================================
        BILL NUMBER
     ================================= */
 
     @Column(nullable = false, unique = true)
     private String billNumber;
-
 
     /* ================================
        COMPANY
@@ -32,7 +32,6 @@ public class Bill {
     @JoinColumn(name = "company_id", nullable = false)
     private Company company;
 
-
     /* ================================
        TRIP
     ================================= */
@@ -41,7 +40,19 @@ public class Bill {
     @JoinColumn(name = "trip_id")
     @JsonIgnore
     private Trip trip;
+    
+    
+    /* ================================
+    BILL PAYMENTS
+ ================================= */
 
+ @OneToMany(
+         mappedBy = "bill",
+         cascade = CascadeType.ALL,
+         orphanRemoval = true
+ )
+ @JsonIgnore
+ private List<BillPayment> payments = new ArrayList<>();
 
     /* ================================
        BILL INFORMATION
@@ -50,15 +61,18 @@ public class Bill {
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal totalAmount;
 
+    @Column(nullable = false, precision = 12, scale = 2)
+    private BigDecimal paidAmount = BigDecimal.ZERO;
+
+    @Column(nullable = false, precision = 12, scale = 2)
+    private BigDecimal remainingAmount = BigDecimal.ZERO;
 
     private LocalDate billDate;
 
     private LocalDate dueDate;
 
-
     @Column(length = 1000)
     private String description;
-
 
     /* ================================
        STATUS
@@ -66,14 +80,12 @@ public class Bill {
 
     private String status;
 
-
     /* ================================
        CONSTRUCTOR
     ================================= */
 
     public Bill() {
     }
-
 
     /* ================================
        GETTERS / SETTERS
@@ -83,7 +95,6 @@ public class Bill {
         return id;
     }
 
-
     public String getBillNumber() {
         return billNumber;
     }
@@ -91,7 +102,6 @@ public class Bill {
     public void setBillNumber(String billNumber) {
         this.billNumber = billNumber;
     }
-
 
     public Company getCompany() {
         return company;
@@ -101,7 +111,6 @@ public class Bill {
         this.company = company;
     }
 
-
     public Trip getTrip() {
         return trip;
     }
@@ -109,7 +118,8 @@ public class Bill {
     public void setTrip(Trip trip) {
         this.trip = trip;
     }
-
+    
+    
 
     public BigDecimal getTotalAmount() {
         return totalAmount;
@@ -119,6 +129,21 @@ public class Bill {
         this.totalAmount = totalAmount;
     }
 
+    public BigDecimal getPaidAmount() {
+        return paidAmount;
+    }
+
+    public void setPaidAmount(BigDecimal paidAmount) {
+        this.paidAmount = paidAmount;
+    }
+
+    public BigDecimal getRemainingAmount() {
+        return remainingAmount;
+    }
+
+    public void setRemainingAmount(BigDecimal remainingAmount) {
+        this.remainingAmount = remainingAmount;
+    }
 
     public LocalDate getBillDate() {
         return billDate;
@@ -128,7 +153,6 @@ public class Bill {
         this.billDate = billDate;
     }
 
-
     public LocalDate getDueDate() {
         return dueDate;
     }
@@ -136,7 +160,6 @@ public class Bill {
     public void setDueDate(LocalDate dueDate) {
         this.dueDate = dueDate;
     }
-
 
     public String getDescription() {
         return description;
@@ -146,7 +169,6 @@ public class Bill {
         this.description = description;
     }
 
-
     public String getStatus() {
         return status;
     }
@@ -154,5 +176,12 @@ public class Bill {
     public void setStatus(String status) {
         this.status = status;
     }
+    
+    public List<BillPayment> getPayments() {
+        return payments;
+    }
 
+    public void setPayments(List<BillPayment> payments) {
+        this.payments = payments;
+    }
 }

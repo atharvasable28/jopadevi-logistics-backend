@@ -2,7 +2,6 @@ package com.jopadevi.logistics.service;
 
 import com.jopadevi.logistics.entity.Bill;
 import com.jopadevi.logistics.entity.BillPayment;
-
 import com.jopadevi.logistics.repository.BillPaymentRepository;
 import com.jopadevi.logistics.repository.BillRepository;
 
@@ -16,9 +15,7 @@ import java.util.List;
 public class BillPaymentService {
 
     private final BillPaymentRepository paymentRepository;
-
     private final BillRepository billRepository;
-
 
     public BillPaymentService(
             BillPaymentRepository paymentRepository,
@@ -37,6 +34,7 @@ public class BillPaymentService {
             Long billId,
             BillPayment payment) {
 
+        /* Find bill */
 
         Bill bill = billRepository
                 .findById(billId)
@@ -47,7 +45,7 @@ public class BillPaymentService {
                 );
 
 
-        /* Payment amount must be positive */
+        /* Validate payment amount */
 
         if (payment.getAmount() == null ||
                 payment.getAmount()
@@ -59,30 +57,33 @@ public class BillPaymentService {
         }
 
 
-        /* Calculate already received */
+        /* Get remaining amount safely */
 
-        BigDecimal alreadyPaid =
-                getTotalPaid(billId);
+        BigDecimal currentRemaining =
+                bill.getRemainingAmount() != null &&
+                bill.getRemainingAmount().compareTo(BigDecimal.ZERO) > 0
+                        ? bill.getRemainingAmount()
+                        : bill.getTotalAmount()
+                                .subtract(
+                                        bill.getPaidAmount() != null
+                                                ? bill.getPaidAmount()
+                                                : BigDecimal.ZERO
+                                );
 
 
-        /* Calculate remaining */
-
-        BigDecimal remaining =
-                bill.getTotalAmount()
-                        .subtract(alreadyPaid);
-
-
-        /* Don't allow overpayment */
+        /* Prevent overpayment */
 
         if (payment.getAmount()
-                .compareTo(remaining) > 0) {
+                .compareTo(currentRemaining) > 0) {
 
             throw new RuntimeException(
                     "Payment exceeds remaining bill amount. Remaining amount: ₹"
-                            + remaining
+                            + currentRemaining
             );
         }
 
+
+        /* Set bill */
 
         payment.setBill(bill);
 
@@ -97,13 +98,66 @@ public class BillPaymentService {
         }
 
 
+        /* Save payment */
+
         BillPayment savedPayment =
                 paymentRepository.save(payment);
 
 
+        /* Get current paid amount safely */
+
+        BigDecimal currentPaid =
+                bill.getPaidAmount() != null
+                        ? bill.getPaidAmount()
+                        : BigDecimal.ZERO;
+
+
+        /* Calculate new paid amount */
+
+        BigDecimal newPaidAmount =
+                currentPaid.add(
+                        payment.getAmount()
+                );
+
+        bill.setPaidAmount(
+                newPaidAmount
+        );
+
+
+        /* Calculate remaining amount */
+
+        BigDecimal newRemainingAmount =
+                bill.getTotalAmount()
+                        .subtract(
+                                newPaidAmount
+                        );
+
+        bill.setRemainingAmount(
+                newRemainingAmount
+        );
+
+
         /* Update bill status */
 
-        updateBillStatus(bill);
+        if (newRemainingAmount
+                .compareTo(BigDecimal.ZERO) == 0) {
+
+            bill.setStatus("PAID");
+
+        } else if (newPaidAmount
+                .compareTo(BigDecimal.ZERO) > 0) {
+
+            bill.setStatus("PARTIALLY_PAID");
+
+        } else {
+
+            bill.setStatus("UNPAID");
+        }
+
+
+        /* Save updated bill */
+
+        billRepository.save(bill);
 
 
         return savedPayment;
@@ -111,11 +165,20 @@ public class BillPaymentService {
 
 
     /* ================================
-       GET PAYMENTS
+       GET PAYMENTS FOR BILL
     ================================= */
 
     public List<BillPayment> getPaymentsByBill(
             Long billId) {
+
+        /* Check bill exists */
+
+        if (!billRepository.existsById(billId)) {
+
+            throw new RuntimeException(
+                    "Bill not found"
+            );
+        }
 
         return paymentRepository
                 .findByBillId(billId);
@@ -129,19 +192,17 @@ public class BillPaymentService {
     public BigDecimal getTotalPaid(
             Long billId) {
 
-        List<BillPayment> payments =
-                paymentRepository
-                        .findByBillId(billId);
-
-
-        return payments.stream()
-
-                .map(BillPayment::getAmount)
-
-                .reduce(
-                        BigDecimal.ZERO,
-                        BigDecimal::add
+        Bill bill = billRepository
+                .findById(billId)
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "Bill not found"
+                        )
                 );
+
+        return bill.getPaidAmount() != null
+                ? bill.getPaidAmount()
+                : BigDecimal.ZERO;
     }
 
 
@@ -160,48 +221,8 @@ public class BillPaymentService {
                         )
                 );
 
-
-        BigDecimal paid =
-                getTotalPaid(billId);
-
-
-        return bill.getTotalAmount()
-                .subtract(paid);
+        return bill.getRemainingAmount() != null
+                ? bill.getRemainingAmount()
+                : bill.getTotalAmount();
     }
-
-
-    /* ================================
-       UPDATE BILL STATUS
-    ================================= */
-
-    private void updateBillStatus(
-            Bill bill) {
-
-        BigDecimal paid =
-                getTotalPaid(bill.getId());
-
-
-        if (paid.compareTo(BigDecimal.ZERO) == 0) {
-
-            bill.setStatus("PENDING");
-
-        }
-
-        else if (paid.compareTo(
-                bill.getTotalAmount()) >= 0) {
-
-            bill.setStatus("PAID");
-
-        }
-
-        else {
-
-            bill.setStatus("PARTIALLY_PAID");
-
-        }
-
-
-        billRepository.save(bill);
-    }
-
 }
