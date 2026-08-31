@@ -2,13 +2,16 @@ package com.jopadevi.logistics.service;
 
 import com.jopadevi.logistics.entity.Truck;
 import com.jopadevi.logistics.entity.VehicleEMI;
-
+import com.jopadevi.logistics.repository.EMIPaymentRepository;
 import com.jopadevi.logistics.repository.TruckRepository;
 import com.jopadevi.logistics.repository.VehicleEMIRepository;
+
+import jakarta.transaction.Transactional;
 
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+
 
 @Service
 public class VehicleEMIService {
@@ -17,13 +20,24 @@ public class VehicleEMIService {
 
     private final TruckRepository truckRepository;
 
+    private final EMIPaymentRepository paymentRepository;
+
 
     public VehicleEMIService(
+
             VehicleEMIRepository emiRepository,
-            TruckRepository truckRepository) {
+
+            TruckRepository truckRepository,
+
+            EMIPaymentRepository paymentRepository
+    ) {
 
         this.emiRepository = emiRepository;
+
         this.truckRepository = truckRepository;
+
+        this.paymentRepository = paymentRepository;
+
     }
 
 
@@ -32,54 +46,82 @@ public class VehicleEMIService {
     ================================= */
 
     public VehicleEMI addEMI(
+
             Long truckId,
-            VehicleEMI emi) {
+
+            VehicleEMI emi
+    ) {
 
 
         /* Check truck */
 
         Truck truck =
+
                 truckRepository.findById(truckId)
+
                         .orElseThrow(() ->
+
                                 new RuntimeException(
                                         "Truck not found"
                                 )
+
                         );
 
 
         /* Check existing EMI */
 
-        if (emiRepository.existsByTruckId(truckId)) {
+        if (
+                emiRepository.existsByTruckId(
+                        truckId
+                )
+        ) {
 
             throw new RuntimeException(
                     "This truck already has an EMI"
             );
+
         }
 
 
-        emi.setTruck(truck);
+        /* Connect truck */
+
+        emi.setTruck(
+                truck
+        );
 
 
         /* Default paid EMI */
 
-        if (emi.getPaidEMIs() == null) {
+        if (
+                emi.getPaidEMIs() == null
+        ) {
 
-            emi.setPaidEMIs(0);
+            emi.setPaidEMIs(
+                    0
+            );
 
         }
 
 
         /* Default status */
 
-        if (emi.getStatus() == null ||
-                emi.getStatus().isBlank()) {
+        if (
+                emi.getStatus() == null ||
 
-            emi.setStatus("ACTIVE");
+                emi.getStatus().isBlank()
+        ) {
+
+            emi.setStatus(
+                    "ACTIVE"
+            );
 
         }
 
 
-        return emiRepository.save(emi);
+        return emiRepository.save(
+                emi
+        );
+
     }
 
 
@@ -98,13 +140,18 @@ public class VehicleEMIService {
        GET EMI BY ID
     ================================= */
 
-    public VehicleEMI getEMIById(Long id) {
+    public VehicleEMI getEMIById(
+            Long id
+    ) {
 
         return emiRepository.findById(id)
+
                 .orElseThrow(() ->
+
                         new RuntimeException(
                                 "EMI record not found"
                         )
+
                 );
 
     }
@@ -115,20 +162,31 @@ public class VehicleEMIService {
     ================================= */
 
     public VehicleEMI getEMIByTruck(
-            Long truckId) {
+            Long truckId
+    ) {
 
         return emiRepository.findAll()
+
                 .stream()
-                .filter(emi ->
-                        emi.getTruck()
-                                .getId()
-                                .equals(truckId)
+
+                .filter(
+                        emi ->
+
+                                emi.getTruck()
+                                        .getId()
+                                        .equals(
+                                                truckId
+                                        )
                 )
+
                 .findFirst()
+
                 .orElseThrow(() ->
+
                         new RuntimeException(
                                 "No EMI found for this truck"
                         )
+
                 );
 
     }
@@ -136,11 +194,23 @@ public class VehicleEMIService {
 
     /* ================================
        DELETE EMI
+
+       1. Check EMI exists
+       2. Delete all payment history
+       3. Delete EMI record
     ================================= */
 
-    public void deleteEMI(Long id) {
+    @Transactional
+    public void deleteEMI(
+            Long id
+    ) {
 
-        if (!emiRepository.existsById(id)) {
+
+        /* Check EMI */
+
+        if (
+                !emiRepository.existsById(id)
+        ) {
 
             throw new RuntimeException(
                     "EMI record not found"
@@ -148,7 +218,20 @@ public class VehicleEMIService {
 
         }
 
-        emiRepository.deleteById(id);
+
+        /* Delete payment history first */
+
+        paymentRepository
+                .deleteByVehicleEMIId(
+                        id
+                );
+
+
+        /* Delete EMI */
+
+        emiRepository.deleteById(
+                id
+        );
 
     }
 

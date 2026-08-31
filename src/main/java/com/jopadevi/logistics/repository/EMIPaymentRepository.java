@@ -16,4 +16,10 @@ public interface EMIPaymentRepository
             Integer emiNumber
     );
 
+    /* ================================
+       DELETE ALL PAYMENTS OF EMI
+    ================================= */
+
+    void deleteByVehicleEMIId(Long emiId);
+
 }
